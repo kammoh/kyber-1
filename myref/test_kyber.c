@@ -254,6 +254,11 @@ static void test_cpapke() {
 
     // Alice generates a public key
     indcpa_keypair(pk, sk);
+    // for (int i = 0; i < KYBER_INDCPA_SECRETKEYBYTES; ++i) {
+    //   printf("%X ", sk[i]);
+    // }
+    // printf("\n");
+    // exit(1);
     indcpa_enc(ct, msg, pk, coins);
 
     indcpa_dec(dec_msg, ct, sk);

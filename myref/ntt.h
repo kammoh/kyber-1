@@ -4,6 +4,23 @@
 #include <stdint.h>
 #include "params.h"
 
+#define max(a,b)             \
+({                           \
+    __typeof__ (a) _a = (a); \
+    __typeof__ (b) _b = (b); \
+    _a > _b ? _a : _b;       \
+})
+
+#define min(a,b)             \
+({                           \
+    __typeof__ (a) _a = (a); \
+    __typeof__ (b) _b = (b); \
+    _a < _b ? _a : _b;       \
+})
+
+#define N_INV 3303 // (KYBER_N/2=) 128^-1 mod KYBER_Q
+void ntt_ct_ng(int16_t r[256], uint8_t inv, uint8_t is_odd);
+
 #define zetas KYBER_NAMESPACE(zetas)
 extern int16_t zetas[128];
 

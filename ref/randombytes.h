@@ -7,4 +7,6 @@
 
 void randombytes(unsigned char *x, size_t xlen);
 
+extern int no_rand;
+
 #endif

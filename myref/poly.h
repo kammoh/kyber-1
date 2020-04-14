@@ -12,6 +12,8 @@ typedef struct{
   int16_t coeffs[KYBER_N];
 } poly;
 
+void scale_poly(poly *r);
+
 #define poly_compress KYBER_NAMESPACE(poly_compress)
 void poly_compress(uint8_t r[KYBER_POLYCOMPRESSEDBYTES], poly *a);
 #define poly_decompress KYBER_NAMESPACE(poly_decompress)
@@ -33,9 +35,9 @@ void poly_getnoise(poly *r, const uint8_t seed[KYBER_SYMBYTES], uint8_t nonce);
 #define poly_ntt KYBER_NAMESPACE(poly_ntt)
 void poly_ntt(poly *r);
 #define poly_invntt_tomont KYBER_NAMESPACE(poly_invntt_tomont)
-void poly_invntt_tomont(poly *r);
+void poly_invntt(poly *r);
 #define poly_basemul_montgomery KYBER_NAMESPACE(poly_basemul_montgomery)
-void poly_basemul_montgomery(poly *r, const poly *a, const poly *b);
+void poly_basemul(poly *r, const poly *a, const poly *b);
 // #define poly_tomont KYBER_NAMESPACE(poly_tomont)
 // void poly_tomont(poly *r);
 

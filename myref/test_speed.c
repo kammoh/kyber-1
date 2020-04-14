@@ -49,7 +49,7 @@ int main()
 
   for(i=0;i<NTESTS;i++) {
     t[i] = cpucycles();
-    poly_invntt_tomont(&ap);
+    poly_invntt(&ap);
   }
   print_results("INVNTT: ", t, NTESTS);
 

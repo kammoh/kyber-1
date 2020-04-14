@@ -1,4 +1,6 @@
 #include <stdint.h>
+#include <stdio.h>
+#include <assert.h>
 #include "params.h"
 #include "ntt.h"
 #include "reduce.h"
@@ -7,63 +9,21 @@
 
 #define KYBER_ROOT_OF_UNITY 17
 
-static const uint16_t tree[128] = {
-  0, 64, 32, 96, 16, 80, 48, 112, 8, 72, 40, 104, 24, 88, 56, 120,
-  4, 68, 36, 100, 20, 84, 52, 116, 12, 76, 44, 108, 28, 92, 60, 124,
-  2, 66, 34, 98, 18, 82, 50, 114, 10, 74, 42, 106, 26, 90, 58, 122,
-  6, 70, 38, 102, 22, 86, 54, 118, 14, 78, 46, 110, 30, 94, 62, 126,
-  1, 65, 33, 97, 17, 81, 49, 113, 9, 73, 41, 105, 25, 89, 57, 121,
-  5, 69, 37, 101, 21, 85, 53, 117, 13, 77, 45, 109, 29, 93, 61, 125,
-  3, 67, 35, 99, 19, 83, 51, 115, 11, 75, 43, 107, 27, 91, 59, 123,
-  7, 71, 39, 103, 23, 87, 55, 119, 15, 79, 47, 111, 31, 95, 63, 127
-};
 
 int16_t zetas[128];
 int16_t zetas_inv[128];
 
 
+static unsigned int bit_reverse(unsigned int num, unsigned int bits) {
+  unsigned int reverse_num = 0;
 
+  for (unsigned i = 0; i < bits; i++) {
+    if (num & (1 << i))
+      reverse_num |= (1 << ((bits - 1) - i));
+  }
 
-// const int16_t zetas[128] = {
-//   2285, 2571, 2970, 1812, 1493, 1422, 287, 202, 3158, 622, 1577, 182, 962,
-//   2127, 1855, 1468, 573, 2004, 264, 383, 2500, 1458, 1727, 3199, 2648, 1017,
-//   732, 608, 1787, 411, 3124, 1758, 1223, 652, 2777, 1015, 2036, 1491, 3047,
-//   1785, 516, 3321, 3009, 2663, 1711, 2167, 126, 1469, 2476, 3239, 3058, 830,
-//   107, 1908, 3082, 2378, 2931, 961, 1821, 2604, 448, 2264, 677, 2054, 2226,
-//   430, 555, 843, 2078, 871, 1550, 105, 422, 587, 177, 3094, 3038, 2869, 1574,
-//   1653, 3083, 778, 1159, 3182, 2552, 1483, 2727, 1119, 1739, 644, 2457, 349,
-//   418, 329, 3173, 3254, 817, 1097, 603, 610, 1322, 2044, 1864, 384, 2114, 3193,
-//   1218, 1994, 2455, 220, 2142, 1670, 2144, 1799, 2051, 794, 1819, 2475, 2459,
-//   478, 3221, 3021, 996, 991, 958, 1869, 1522, 1628
-// };
-
-// const int16_t zetas_inv[128] = {
-//   1701, 1807, 1460, 2371, 2338, 2333, 308, 108, 2851, 870, 854, 1510, 2535,
-//   1278, 1530, 1185, 1659, 1187, 3109, 874, 1335, 2111, 136, 1215, 2945, 1465,
-//   1285, 2007, 2719, 2726, 2232, 2512, 75, 156, 3000, 2911, 2980, 872, 2685,
-//   1590, 2210, 602, 1846, 777, 147, 2170, 2551, 246, 1676, 1755, 460, 291, 235,
-//   3152, 2742, 2907, 3224, 1779, 2458, 1251, 2486, 2774, 2899, 1103, 1275, 2652,
-//   1065, 2881, 725, 1508, 2368, 398, 951, 247, 1421, 3222, 2499, 271, 90, 853,
-//   1860, 3203, 1162, 1618, 666, 320, 8, 2813, 1544, 282, 1838, 1293, 2314, 552,
-//   2677, 2106, 1571, 205, 2918, 1542, 2721, 2597, 2312, 681, 130, 1602, 1871,
-//   829, 2946, 3065, 1325, 2756, 1861, 1474, 1202, 2367, 3147, 1752, 2707, 171,
-//   3127, 3042, 1907, 1836, 1517, 359, 758, 1441
-// };
-
-/*************************************************
-* Name:        fqmul
-*
-* Description: Multiplication followed by Montgomery reduction
-*
-* Arguments:   - int16_t a: first factor
-*              - int16_t b: second factor
-*
-* Returns 16-bit integer congruent to a*b*R^{-1} mod q
-**************************************************/
-// static int16_t fqmul(int16_t a, int16_t b) {
-//   return montgomery_reduce((int32_t)a*b);
-// }
-
+  return reverse_num;
+}
 
 void init_ntt() {
   unsigned int i, j, k;
@@ -74,15 +34,13 @@ void init_ntt() {
     tmp[i] = full_reduce(tmp[i - 1] * KYBER_ROOT_OF_UNITY);
 
   for(i = 0; i < 128; ++i)
-    zetas[i] = tmp[tree[i]];
+    zetas[i] = tmp[bit_reverse(i, 7)];
 
   k = 0;
   for(i = 64; i >= 1; i >>= 1)
     for(j = i; j < 2*i; ++j)
-      zetas_inv[k++] = full_reduce(-tmp[128 - tree[j]]);
+      zetas_inv[k++] = full_reduce(-tmp[128 - bit_reverse(j, 7)]);
 
-  // zetas_inv[127] = full_reduce(1 * (MONT * (KYBER_Q - 1) * ((KYBER_Q - 1)/128) % KYBER_Q));
-  // printf("n inv = %d\n", zetas_inv[127]);
 }
 
 /*************************************************
@@ -95,6 +53,17 @@ void init_ntt() {
 *                                of Zq
 **************************************************/
 void ntt(int16_t r[256]) {
+  int16_t rp_odds[128];
+  int16_t rp_evens[128];
+  for(int i = 0; i < 256; ++i){
+    if(i&1)
+      rp_odds[i / 2] = r[i];
+    else
+      rp_evens[i / 2] = r[i];
+  }
+  ntt_ct_ng(rp_evens, 0, 0);
+  ntt_ct_ng(rp_odds, 0, 1);
+  
   unsigned int len, start, j, k;
   int16_t t, zeta;
 
@@ -103,31 +72,163 @@ void ntt(int16_t r[256]) {
     for(start = 0; start < 256; start = j + len) {
       zeta = zetas[k++];
       for(j = start; j < start + len; ++j) {
-        t = full_reduce(zeta * r[j + len]);
-        r[j + len] = r[j] - t;
-        r[j] = r[j] + t;
+        t = barrett_reduce(zeta * r[j + len]);
+        // if(len > 64){
+        //   printf("[ntt] (%5d, %5d) -> (%5d, %5d)\n", r[j],  r[j + len], r[j] + t,r[j] - t);
+        // }
+        r[j + len] = full_reduce(r[j] - t);
+        r[j] = full_reduce(r[j] + t);
       }
     }
   }
-  
+
+  for (int i = 0; i < 256; ++i) {
+    if (i & 1)
+      assert(rp_odds[i / 2] == r[i]);
+    else
+      assert(rp_evens[i / 2] == r[i]);
+  }
+}
+
+#define mm1 ( (!inv) ? m==1 ? 1 : (m / 2) : (m==1?1:(m/2)) )
+void ntt_ct_ng(int16_t r[128], uint8_t inv, uint8_t is_odd) {
+  unsigned const n = 128;
+  if (inv && !is_odd) {
+    printf("ntt_ct_ng.inv (even) input=\n");
+    for(int i = 0; i < n; i++){
+      printf("%4d ", r[i]);
+      if(i%32 == 31){
+        printf("\n");
+      }
+    }
+    printf("\n");
+  }
+  unsigned i, j, k, m;
+  unsigned n1 = (!inv) ? n : (n / 4);
+  int16_t t1, t2, u1, u2, r1, r2;
+
+  int16_t mem[n/2][2];
+
+  if(inv){
+//      for (i = 0; i < n / 4; i++) {
+//          mem[2*i][0]   = r[4*i];
+//          mem[2*i][1]   = r[4*i+2];
+//          mem[2*i+1][0] = r[4*i+1];
+//          mem[2*i+1][1] = r[4*i+3];
+//      }
+    for (int i = 0; i < n / 2; i++) {
+      mem[i][0] = r[2 * i];
+      mem[i][1] = r[2 * i + 1];
+    }
+  } else {
+    for(int i = 0; i < n / 2; i++){
+      mem[i][0] = r[i];
+      mem[i][1] = r[i + n / 2];
+    }
+  }
+  k = (!inv) ? 1 : 0;
+  j = 0;
+  for (m = (!inv) ? (n / 2) : 1; 1 <= m && m < n1; m = (!inv)? (m >> 1) : (m << 1) ) {
+    for (i = 0; i < (n / 2); i = j + mm1) { // TODO inc for inv
+      int16_t w = (!inv) ? zetas[k++] : zetas_inv[k++];
+      for (j = i; j < i + mm1; j = j + 1 ) {
+        if(inv){
+          printf("m=%d i=%d, j=%d\n", m, i, j);
+        }
+        assert(0 <= j && j < n / 2);
+        assert(i + mm1 < n / 2);
+        t1 = mem[j][0];
+        u1 = mem[j][1];
+        t2 = mem[j + mm1][0];
+        u2 = mem[j + mm1][1];
+
+        r1 = (!inv) ? barrett_reduce((int32_t)w * u1) : barrett_reduce((int32_t)w * (t1 - u1));
+        if (m == 1) {
+          w = (!inv) ? zetas[k++] : zetas_inv[k++];
+          // printf("w=%d\n", w);
+        }
+        r2 = (!inv) ? barrett_reduce((int32_t)w * u2) : barrett_reduce((int32_t)w * (t2 - u2));
+
+        if (inv && m == 4 && !is_odd) {
+          printf(
+              "[ntt-ct-ng(inv)] (%5d ,%5d : %5d, %5d) -> (%5d, %5d : %5d, %5d) "
+              "w=%4d,  k=%3d,  m=%2d,  i=%2d,  mm1=%2d, (j:%2d, j+mm1:%2d) \n",
+              t1, u1, t2, u2, full_reduce(t1 + u1), full_reduce(r1),
+              full_reduce(t2 + u2), full_reduce(r2), w, k, m, i, mm1, j, j + mm1
+              );
+        }
+
+        mem[j][0]                    = (!inv) ? full_reduce(t1 + r1) : full_reduce(t1 + u1);
+        mem[j][1]                    = (!inv) ? full_reduce(t2 + r2) : full_reduce(t2 + u2);
+        mem[j + mm1][0]  = (!inv) ? full_reduce(t1 - r1) : full_reduce(r1);
+        mem[j + mm1][1] = (!inv) ? full_reduce(t2 - r2) : full_reduce(r2);
+      }
+    }
+  }
+  printf("\n---\n\n");
+  // for(unsigned j = 0; j < (n/2); j = j + 2){
+  //   t1 = mem[j][0];
+  //   u1 = mem[j][1];
+  //   t2 = mem[j + 1][0];
+  //   u2 = mem[j + 1][1];
+
+  //   w = zetas[k++];
+  //   r1 = (!inv) ? barrett_reduce((int32_t)w * u1): barrett_reduce((int32_t)w * (t1 - u1));
+
+  //   w = zetas[k++];
+  //   r2 = (!inv) ? barrett_reduce((int32_t)w * u2) : barrett_reduce((int32_t)w * (t2 - u2));
+
+  //   mem[j][0] = (!inv) ? full_reduce(t1 + r1) : full_reduce(t1 + u1);
+  //   mem[j][1] = (!inv) ? full_reduce(t1 - r1) : full_reduce(r1);
+  //   mem[j + 1][0] = (!inv) ? full_reduce(t2 + r2) : full_reduce(t2 + u2);
+  //   mem[j + 1][1] = (!inv) ? full_reduce(t2 - r2) : full_reduce(r2);
+
+  //   //mem[i] = (a[i], a[i + m])25
+  //   // k = (!inv) ? k + 1 : k;
+  // }
+
+  if(inv){
+    for(i = 0; i < n / 2; i++){
+      r[i] = mem[i][0] ;
+      r[i + n / 2] = mem[i][1];
+    }
+  } else {
+    for (i = 0; i < n / 4; i++) {
+      r[4*i]   = mem[2*i][0];
+      r[4*i+2] = mem[2*i][1];
+      r[4*i+1] = mem[2*i+1][0];
+      r[4*i+3] = mem[2*i+1][1];
+    }
+  }
+  printf("\n>>---\n\n");
 }
 
 /*************************************************
-* Name:        invntt_tomont
+* Name:        invntt
 *
-* Description: Inplace inverse number-theoretic transform in Rq and
-*              multiplication by Montgomery factor 2^16.
-*              Input is in bitreversed order, output is in standard order
+* Description: Inplace inverse number-theoretic transform in Rq
+*              Input is in bit-reversed order, output is in standard order
 *
 * Arguments:   - int16_t r[256]: pointer to input/output vector of elements
 *                                of Zq
 **************************************************/
+
 void invntt(int16_t r[256]) {
   unsigned int start, len, j, k;
   int16_t t, zeta;
 
-  for (j = 0; j < 256; ++j)
-    r[j] = full_reduce((int32_t)r[j] * 512 * MONT_INV);
+  // scaling can be done either at the beginning .. or
+
+  int16_t rp_odds[128];
+  int16_t rp_evens[128];
+  for (int i = 0; i < 256; ++i) {
+    if (i & 1)
+      rp_odds[i / 2] = r[i];
+    else
+      rp_evens[i / 2] = r[i];
+  }
+  ntt_ct_ng(rp_evens, 1, 0);
+  ntt_ct_ng(rp_odds, 1, 1);
 
   k = 0;
   for(len = 2; len <= 128; len <<= 1) {
@@ -135,14 +236,40 @@ void invntt(int16_t r[256]) {
       zeta = zetas_inv[k++];
       for(j = start; j < start + len; ++j) {
         t = r[j];
-        r[j] = full_reduce((t + r[j + len]));
-        r[j + len] = full_reduce( ((int32_t)zeta * (t - r[j + len])) );
+        if(len == 8){
+          printf("[invntt] (%5d, %5d) -> (%5d, %5d) zeta=%4d k=%2d, len=%2d, start=%2d, j=%2d \n", r[j], r[j + len],
+                 barrett_reduce((t + r[j + len])), barrett_reduce(((int32_t)zeta * (t - r[j + len]))), 
+                 zeta, k, len, start, j);
+        }
+        r[j] = barrett_reduce((t + r[j + len]));
+        r[j + len] = barrett_reduce(((int32_t)zeta * (t - r[j + len])));
       }
     }
   }
 
-  // for(j = 0; j < 256; ++j)
-  //   r[j] = full_reduce((int32_t)r[j] * 1);
+  // ... the end (here)
+  // tt] ( 2766,   258) -> (   44,  2159)
+
+  printf("rp:\n");
+  for (int i = 0; i < 256; ++i) {
+    if (i & 1)
+      printf("%4d ", rp_odds[i / 2]);
+    else
+      printf("%4d ", rp_evens[i / 2]);
+  }
+  printf("\nr:\n");
+  for (int i = 0; i < 256; ++i) {
+    printf("%4d ", r[i]);
+  }
+  printf("\n\n");
+
+  for (int i = 0; i < 256; ++i) {
+    if (i & 1)
+      assert(rp_odds[i / 2] == r[i]);
+    else
+      assert(rp_evens[i / 2] == r[i]);
+  }
+
 }
 
 /*************************************************
@@ -161,10 +288,8 @@ void basemul(int16_t r[2],
              const int16_t b[2],
              int16_t zeta)
 {
-  r[0] = full_reduce((int64_t)a[1] * b[1]);
-  r[0] = full_reduce((int64_t)r[0] * zeta);
-  r[0] += full_reduce((int64_t)a[0] * b[0]);
+  r[0] = barrett_reduce((int64_t)a[1] * b[1]);
+  r[0] = barrett_reduce((int64_t)r[0] * zeta) + barrett_reduce((int64_t)a[0] * b[0]);
 
-  r[1] = full_reduce((int64_t)a[0] * b[1]);
-  r[1] += full_reduce((int64_t)a[1] * b[0]);
+  r[1] = barrett_reduce((int64_t)a[0] * b[1]) + barrett_reduce((int64_t)a[1] * b[0]);
 }

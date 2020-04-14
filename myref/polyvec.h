@@ -23,13 +23,13 @@ void polyvec_frombytes(polyvec *r, const uint8_t a[KYBER_POLYVECBYTES]);
 #define polyvec_ntt KYBER_NAMESPACE(polyvec_ntt)
 void polyvec_ntt(polyvec *r);
 #define polyvec_invntt_tomont KYBER_NAMESPACE(polyvec_invntt_tomont)
-void polyvec_invntt_tomont(polyvec *r);
+void polyvec_invntt(polyvec *r);
 
 #define polyvec_pointwise_acc_montgomery \
-        KYBER_NAMESPACE(polyvec_pointwise_acc_montgomery)
-void polyvec_pointwise_acc_montgomery(poly *r,
+        KYBER_NAMESPACE(polyvec_pointwise_acc)
+void polyvec_pointwise_acc(poly *r,
                                       const polyvec *a,
-                                      const polyvec *b);
+                                      const polyvec *b, uint8_t scala);
 
 #define polyvec_reduce KYBER_NAMESPACE(polyvec_reduce)
 void polyvec_reduce(polyvec *r);

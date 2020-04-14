@@ -7,6 +7,8 @@
 #include <sys/syscall.h>
 #include "randombytes.h"
 
+#define NO_RAND
+
 #define _GNU_SOURCE
 
 static int fd = -1;
@@ -35,8 +37,20 @@ static void randombytes_fallback(unsigned char *x, size_t xlen)
     xlen -= i;
   }
 }
+#ifdef NO_RAND
 
-#ifdef SYS_getrandom
+int no_rand = 1;
+
+void randombytes(unsigned char *buf, size_t buflen) {
+  if(no_rand){
+    for (size_t i = 0; i < buflen; ++i) {
+      buf[i] = (unsigned char) i;
+    }
+  } else {
+    randombytes_fallback(buf, buflen);
+  }
+}
+#elif SYS_getrandom
 void randombytes(unsigned char *buf, size_t buflen)
 {
   size_t d = 0;

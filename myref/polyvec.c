@@ -161,22 +161,21 @@ void polyvec_ntt(polyvec *r)
 }
 
 /*************************************************
-* Name:        polyvec_invntt_tomont
+* Name:        polyvec_invntt
 *
 * Description: Apply inverse NTT to all elements of a vector of polynomials
-*              and multiply by Montgomery factor 2^16
 *
 * Arguments:   - polyvec *r: pointer to in/output vector of polynomials
 **************************************************/
-void polyvec_invntt_tomont(polyvec *r)
+void polyvec_invntt(polyvec *r)
 {
   unsigned int i;
   for(i=0;i<KYBER_K;i++)
-    poly_invntt_tomont(&r->vec[i]);
+    poly_invntt(&r->vec[i]);
 }
 
 /*************************************************
-* Name:        polyvec_pointwise_acc_montgomery
+* Name:        polyvec_pointwise_acc
 *
 * Description: Pointwise multiply elements of a and b, accumulate into r,
 *              and multiply by 2^-16.
@@ -185,20 +184,22 @@ void polyvec_invntt_tomont(polyvec *r)
 *            - const polyvec *a: pointer to first input vector of polynomials
 *            - const polyvec *b: pointer to second input vector of polynomials
 **************************************************/
-void polyvec_pointwise_acc_montgomery(poly *r,
+void polyvec_pointwise_acc(poly *r,
                                       const polyvec *a,
-                                      const polyvec *b)
+                                      const polyvec *b, uint8_t scale)
 {
   unsigned int i;
   poly t;
 
-  poly_basemul_montgomery(r, &a->vec[0], &b->vec[0]);
+  poly_basemul(r, &a->vec[0], &b->vec[0]);
   for(i=1;i<KYBER_K;i++) {
-    poly_basemul_montgomery(&t, &a->vec[i], &b->vec[i]);
+    poly_basemul(&t, &a->vec[i], &b->vec[i]);
     poly_add(r, r, &t);
   }
 
-  poly_reduce(r);
+  // poly_reduce(r);
+  if(scale)
+    scale_poly(r);
 }
 
 /*************************************************
