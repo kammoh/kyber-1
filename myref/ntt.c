@@ -89,8 +89,8 @@ void ntt(int16_t r[256]) {
       assert(rp_evens[i / 2] == r[i]);
   }
 }
-
-#define mm1 ( (!inv) ? m==1 ? 1 : (m / 2) : (m==1?1:(m/2)) )
+const int m_level = 2;
+#define mm1 ( (!inv) ? m==1 ? 1 : (m / 2) : m )
 void ntt_ct_ng(int16_t r[128], uint8_t inv, uint8_t is_odd) {
   unsigned const n = 128;
   if (inv && !is_odd) {
@@ -129,7 +129,7 @@ void ntt_ct_ng(int16_t r[128], uint8_t inv, uint8_t is_odd) {
   k = (!inv) ? 1 : 0;
   j = 0;
   for (m = (!inv) ? (n / 2) : 1; 1 <= m && m < n1; m = (!inv)? (m >> 1) : (m << 1) ) {
-    for (i = 0; i < (n / 2); i = j + mm1) { // TODO inc for inv
+    for (i = 0; i < (n / 2); i = j + (m==1 ? 1 : (m / 2))) { // TODO inc for inv
       int16_t w = (!inv) ? zetas[k++] : zetas_inv[k++];
       for (j = i; j < i + mm1; j = j + 1 ) {
         if(inv){
@@ -149,19 +149,34 @@ void ntt_ct_ng(int16_t r[128], uint8_t inv, uint8_t is_odd) {
         }
         r2 = (!inv) ? barrett_reduce((int32_t)w * u2) : barrett_reduce((int32_t)w * (t2 - u2));
 
-        if (inv && m == 4 && !is_odd) {
+
+        uint16_t fwd_t1 = full_reduce(t1 + r1);
+        uint16_t fwd_t2 = full_reduce(t2 + r2);
+        uint16_t fwd_u1 = full_reduce(t1 - r1);
+        uint16_t fwd_u2 = full_reduce(t2 - r2);
+        uint16_t inv_t1 = full_reduce(t1 + u1);
+        uint16_t inv_t2 = full_reduce(t2 + u2);
+        uint16_t inv_u1 = full_reduce(r1);
+        uint16_t inv_u2 = full_reduce(r2);
+
+
+        uint16_t inv_u1t2_1 = (m==200) ? inv_u1 : inv_t2;
+        uint16_t inv_u1t2_2 = (m==200) ? inv_t2 : inv_u1;
+
+        if (inv && m == m_level && !is_odd) {
           printf(
-              "[ntt-ct-ng(inv)] (%5d ,%5d : %5d, %5d) -> (%5d, %5d : %5d, %5d) "
-              "w=%4d,  k=%3d,  m=%2d,  i=%2d,  mm1=%2d, (j:%2d, j+mm1:%2d) \n",
-              t1, u1, t2, u2, full_reduce(t1 + u1), full_reduce(r1),
-              full_reduce(t2 + u2), full_reduce(r2), w, k, m, i, mm1, j, j + mm1
+              "[ntt-ct-ng(inv)] (%5d,%5d(%2d) : %5d,%5d(%2d)) -> (%5d,%5d : %5d,%5d) "
+              "w=%4d,  k=%3d,  m=%2d,  i=%2d,  mm1=%2d, j:%2d \n",
+              t1, u1, j, t2, u2, j+mm1, inv_t1, inv_u1t2_1, inv_u1t2_2, inv_u2,
+              w, k, m, i, mm1, j
               );
         }
 
-        mem[j][0]                    = (!inv) ? full_reduce(t1 + r1) : full_reduce(t1 + u1);
-        mem[j][1]                    = (!inv) ? full_reduce(t2 + r2) : full_reduce(t2 + u2);
-        mem[j + mm1][0]  = (!inv) ? full_reduce(t1 - r1) : full_reduce(r1);
-        mem[j + mm1][1] = (!inv) ? full_reduce(t2 - r2) : full_reduce(r2);
+
+        mem[j][0]       = (!inv) ? fwd_t1 : inv_t1;
+        mem[j][1]       = (!inv) ? fwd_t2 : inv_u1t2_1;
+        mem[j + mm1][0] = (!inv) ? fwd_u1 : inv_u1t2_2;
+        mem[j + mm1][1] = (!inv) ? fwd_u2 : inv_u2;
       }
     }
   }
@@ -236,7 +251,7 @@ void invntt(int16_t r[256]) {
       zeta = zetas_inv[k++];
       for(j = start; j < start + len; ++j) {
         t = r[j];
-        if(len == 8){
+        if(len == 2*m_level){
           printf("[invntt] (%5d, %5d) -> (%5d, %5d) zeta=%4d k=%2d, len=%2d, start=%2d, j=%2d \n", r[j], r[j + len],
                  barrett_reduce((t + r[j + len])), barrett_reduce(((int32_t)zeta * (t - r[j + len]))), 
                  zeta, k, len, start, j);
