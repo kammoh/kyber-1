@@ -108,16 +108,16 @@ void ntt_ct_ng(int16_t r[128], uint8_t inv, uint8_t is_odd) {
     int16_t mem[n / 2][2];
 
     if (inv) {
-        for (i = 0; i < n / 4; i++) {
-            mem[2 * i][0] = r[4 * i];
-            mem[2 * i][1] = r[4 * i + 2];
-            mem[2 * i + 1][0] = r[4 * i + 1];
-            mem[2 * i + 1][1] = r[4 * i + 3];
-        }
-//    for (int i = 0; i < n / 2; i++) {
-//      mem[i][0] = r[2 * i];
-//      mem[i][1] = r[2 * i + 1];
-//    }
+//        for (i = 0; i < n / 4; i++) {
+//            mem[2 * i][0] = r[4 * i];
+//            mem[2 * i][1] = r[4 * i + 2];
+//            mem[2 * i + 1][0] = r[4 * i + 1];
+//            mem[2 * i + 1][1] = r[4 * i + 3];
+//        }
+    for (int i = 0; i < n / 2; i++) {
+      mem[i][0] = r[2 * i];
+      mem[i][1] = r[2 * i + 1];
+    }
     } else {
         for (int i = 0; i < n / 2; i++) {
             mem[i][0] = r[i];
@@ -125,132 +125,106 @@ void ntt_ct_ng(int16_t r[128], uint8_t inv, uint8_t is_odd) {
         }
     }
 
-    if (inv) { // m = 1
-        m = 1;
-        k = 0;
-
-        printf("zeta_invs @ct-ng.inv.pre\n");
-        for (int kk = 0; kk < 128; kk++) {
-            printf("%5d ", zetas_inv[kk]);
-        }
-        printf("\n");
-        for (j = 0; j < (n / 2); j = j + 2) {
-            t1 = mem[j][0];
-            u1 = mem[j + 1][0];
-            t2 = mem[j][1];
-            u2 = mem[j + 1][1];
-
-            int16_t w = zetas_inv[k++];
-            r1 = barrett_reduce((int32_t) w * (t1 - u1));
-
-            w = zetas_inv[k++];
-            r2 = barrett_reduce((int32_t) w * (t2 - u2));
-
-//            uint16_t fwd_t1 = full_reduce(t1 + r1);
-//            uint16_t fwd_t2 = full_reduce(t2 + r2);
-//            uint16_t fwd_u1 = full_reduce(t1 - r1);
-//            uint16_t fwd_u2 = full_reduce(t2 - r2);
-            uint16_t inv_t1 = full_reduce(t1 + u1);
-            uint16_t inv_t2 = full_reduce(t2 + u2);
-            uint16_t inv_u1 = full_reduce(r1);
-            uint16_t inv_u2 = full_reduce(r2);
-
-            uint16_t inv_u1t2_1 = (m == 200) ? inv_u1 : inv_t2;
-            uint16_t inv_u1t2_2 = (m == 200) ? inv_t2 : inv_u1;
-
-            if (!is_odd) {
-                printf(
-                    "[ntt-ct-ng(inv)(pre)] (%5d,%5d(%2d) : %5d,%5d(%2d)) -> (%5d,%5d : %5d,%5d) "
-                    "w=%4d,  k=%3d,  m=%2d,  j:%2d \n",
-                    t1, u1, j, t2, u2, j + 1, inv_t1, inv_u1t2_1, inv_u1t2_2, inv_u2,
-                    w, k, m, j
-                );
-            }
-
-            mem[j][0] = inv_t1;
-            mem[j][0] = inv_u1;
-            mem[j + 1][1] = inv_t2;
-            mem[j + 1][1] = inv_u2;
-
-            //mem[i] = (a[i], a[i + m])25
-            // k = (!inv) ? k + 1 : k;
-        }
-        printf("pre loop done\n");
-    }
-
     k = (!inv) ? 1 : 0;
-    for (m = (!inv) ? (n / 2) : 2; 1 <= m && m < n1; m = (!inv) ? (m >> 1) : (m << 1)) {
-        for (i = 0; i < (n / 2); i = j + (m == 1 ? 1 : (m / 2))) { // TODO inc for inv
-            int16_t w = (!inv) ? zetas[k++] : zetas_inv[k++];
-            for (j = i; j < i + (m == 1 ? 1 : m / 2); j = j + 1) {
-                unsigned j2 = j + (m == 1 ? 1 : m / 2);
-                if (inv) {
-                    printf("m=%d i=%d, j=%d j2=%d\n", m, i, j, j2);
+
+
+    if(inv){
+        for (unsigned len = 1; len <= n/2; len <<= 1U) {
+            printf("len=%d\n", len);
+            uint8_t last_len = len == n/2;
+            for (i = 0; i < n/2; i = j + (last_len ? 1 : len) ) {
+                printf("i=%d\n", i);
+                assert(k < 128);
+
+                for (j = i; j < i + (last_len ? 1 : len); j = j + 1) {
+                    printf("j=%d\n", j);
+                    unsigned j2 = j +  (last_len ? 1 : len);
+                    assert(0 <= j && j < n / 2);
+                    assert(j2 < n / 2);
+                    assert(j < j2);
+
+                    t1 = mem[j][0];
+                    u1 = mem[j][1];
+
+                    t2 = mem[j2][0];
+                    u2 = mem[j2][1];
+
+                    int16_t w1 = zetas_inv[k];
+                    r1 = (!inv) ? barrett_reduce((int32_t) w1 * u1) : barrett_reduce((int32_t) w1 * (t1 - u1));
+                    int16_t w2 = zetas_inv[last_len ? k : k+1];
+                    r2 = (!inv) ? barrett_reduce((int32_t) w2 * u2) : barrett_reduce((int32_t) w2 * (t2 - u2));
+
+//                    uint16_t fwd_t1 = full_reduce(t1 + r1);
+//                    uint16_t fwd_t2 = full_reduce(t2 + r2);
+//                    uint16_t fwd_u1 = full_reduce(t1 - r1);
+//                    uint16_t fwd_u2 = full_reduce(t2 - r2);
+                    uint16_t inv_t1 = full_reduce(t1 + u1);
+                    uint16_t inv_u1 = full_reduce(r1);
+                    uint16_t inv_t2 = full_reduce(t2 + u2);
+                    uint16_t inv_u2 = full_reduce(r2);
+
+                    if (!is_odd) {
+                        printf(
+                            "[ntt-ct-ng(inv)(len=%d)] (%5d,%5d(%2d) w1=%5d : %5d,%5d(%2d) w2=%5d) -> (%5d,%5d : %5d,%5d)"
+                            " k=%3d, i=%2d \n",
+                            len, t1, u1, j, w1, t2, u2, j2, w2,
+                            inv_t1, last_len ? inv_u1 : inv_t2, last_len ? inv_t2 : inv_u1, inv_u2, k, i
+                        );
+                    }
+
+                    mem[j][0]  = inv_t1;
+                    mem[j][1]  = last_len ? inv_u1 : inv_t2;
+                    mem[j2][0] = last_len ? inv_t2 : inv_u1;
+                    mem[j2][1] = inv_u2;
                 }
-                assert(0 <= j && j < n / 2);
-                assert(j2 < n / 2);
-                t1 = mem[j][0];
-                u1 = mem[j][!inv];
+                if(!last_len)
+                    k += 2;
+            }
+            printf("\n");
+        }
+    } else {
+        for (unsigned len = (!inv) ? (n / 2) : 2; 1 <= len && len < n1; len = (!inv) ? (len >> 1) : (len << 1)) {
+            uint8_t last_len = (!inv) ? (len == 1) : (len == n/2);
+            for (i = 0; i < (n / 2); i = j + (len == 1 ? 1 : (len / 2))) { // TODO inc for inv
+                int16_t w = (!inv) ? zetas[k++] : zetas_inv[k++];
+                for (j = i; j < i + (len == 1 ? 1 : len / 2); j = j + 1) {
+                    unsigned j2 = j + (len == 1 ? 1 : len / 2);
+                    assert(0 <= j && j < n / 2);
+                    assert(j2 < n / 2);
+                    t1 = mem[j][0];
+                    u1 = mem[j][1];
 
-                t2 = mem[j2][inv];
-                u2 = mem[j2][1];
+                    t2 = mem[j2][0];
+                    u2 = mem[j2][1];
 
-                r1 = (!inv) ? barrett_reduce((int32_t) w * u1) : barrett_reduce((int32_t) w * (t1 - u1));
-                if (m == 1) {
-                    w = (!inv) ? zetas[k++] : zetas_inv[k++];
-                    // printf("w=%d\n", w);
+                    r1 = (!inv) ? barrett_reduce((int32_t) w * u1) : barrett_reduce((int32_t) w * (t1 - u1));
+                    if (len == 1) {
+                        w = (!inv) ? zetas[k++] : zetas_inv[k++];
+                        // printf("w=%d\n", w);
+                    }
+                    r2 = (!inv) ? barrett_reduce((int32_t) w * u2) : barrett_reduce((int32_t) w * (t2 - u2));
+
+                    uint16_t fwd_t1 = full_reduce(t1 + r1);
+                    uint16_t fwd_t2 = full_reduce(t2 + r2);
+                    uint16_t fwd_u1 = full_reduce(t1 - r1);
+                    uint16_t fwd_u2 = full_reduce(t2 - r2);
+                    uint16_t inv_t1 = full_reduce(t1 + u1);
+                    uint16_t inv_t2 = full_reduce(t2 + u2);
+                    uint16_t inv_u1 = full_reduce(r1);
+                    uint16_t inv_u2 = full_reduce(r2);
+
+
+
+                    mem[j][0]    = (!inv) ? fwd_t1 : inv_t1;
+                    mem[j][1]    = (!inv) ? (last_len? fwd_u1 : fwd_t2) : (last_len? inv_u1: inv_t2);
+                    mem[j2][0]   = (!inv) ? (last_len? fwd_t2 : fwd_u1) : (last_len? inv_t2: inv_u1);
+                    mem[j2][1]   = (!inv) ? fwd_u2 : inv_u2;
                 }
-                r2 = (!inv) ? barrett_reduce((int32_t) w * u2) : barrett_reduce((int32_t) w * (t2 - u2));
-
-                uint16_t fwd_t1 = full_reduce(t1 + r1);
-                uint16_t fwd_t2 = full_reduce(t2 + r2);
-                uint16_t fwd_u1 = full_reduce(t1 - r1);
-                uint16_t fwd_u2 = full_reduce(t2 - r2);
-                uint16_t inv_t1 = full_reduce(t1 + u1);
-                uint16_t inv_t2 = full_reduce(t2 + u2);
-                uint16_t inv_u1 = full_reduce(r1);
-                uint16_t inv_u2 = full_reduce(r2);
-
-                uint16_t inv_u1t2_1 = (m == 200) ? inv_u1 : inv_t2;
-                uint16_t inv_u1t2_2 = (m == 200) ? inv_t2 : inv_u1;
-
-                if (inv && m == m_level && !is_odd) {
-                    printf(
-                        "[ntt-ct-ng(inv)] (%5d,%5d(%2d) : %5d,%5d(%2d)) -> (%5d,%5d : %5d,%5d) "
-                        "w=%4d,  k=%3d,  m=%2d,  i=%2d,  mm1=%2d, j:%2d \n",
-                        t1, u1, j, t2, u2, j2, inv_t1, inv_u1t2_1, inv_u1t2_2, inv_u2,
-                        w, k, m, i, mm1, j
-                    );
-                }
-
-                mem[j][0] = (!inv) ? fwd_t1 : inv_t1;
-                mem[j][!inv] = (!inv) ? fwd_t2 : inv_u1t2_1;
-                mem[j2][inv] = (!inv) ? fwd_u1 : inv_u1t2_2;
-                mem[j2][1] = (!inv) ? fwd_u2 : inv_u2;
             }
         }
     }
     printf("\n---\n\n");
-    // for(unsigned j = 0; j < (n/2); j = j + 2){
-    //   t1 = mem[j][0];
-    //   u1 = mem[j][1];
-    //   t2 = mem[j + 1][0];
-    //   u2 = mem[j + 1][1];
 
-    //   w = zetas[k++];
-    //   r1 = (!inv) ? barrett_reduce((int32_t)w * u1): barrett_reduce((int32_t)w * (t1 - u1));
-
-    //   w = zetas[k++];
-    //   r2 = (!inv) ? barrett_reduce((int32_t)w * u2) : barrett_reduce((int32_t)w * (t2 - u2));
-
-    //   mem[j][0] = (!inv) ? full_reduce(t1 + r1) : full_reduce(t1 + u1);
-    //   mem[j][1] = (!inv) ? full_reduce(t1 - r1) : full_reduce(r1);
-    //   mem[j + 1][0] = (!inv) ? full_reduce(t2 + r2) : full_reduce(t2 + u2);
-    //   mem[j + 1][1] = (!inv) ? full_reduce(t2 - r2) : full_reduce(r2);
-
-    //   //mem[i] = (a[i], a[i + m])25
-    //   // k = (!inv) ? k + 1 : k;
-    // }
 
     if (inv) {
         for (i = 0; i < n / 2; i++) {
@@ -258,13 +232,12 @@ void ntt_ct_ng(int16_t r[128], uint8_t inv, uint8_t is_odd) {
             r[i + n / 2] = mem[i][1];
         }
     } else {
-        for (i = 0; i < n / 4; i++) {
-            r[4 * i] = mem[2 * i][0];
-            r[4 * i + 2] = mem[2 * i][1];
-            r[4 * i + 1] = mem[2 * i + 1][0];
-            r[4 * i + 3] = mem[2 * i + 1][1];
+        for (i = 0; i < n / 2; i++) {
+            r[2 * i]     = mem[i][0];
+            r[2 * i + 1] = mem[i][1];
         }
     }
+
     printf("\n>>---\n\n");
 }
 
@@ -284,21 +257,21 @@ void invntt(int16_t r[256]) {
 
     // scaling can be done either at the beginning .. or
 
-//    int16_t rp_odds[128];
-//    int16_t rp_evens[128];
-//    for (int i = 0; i < 256; ++i) {
-//        if (i & 1)
-//            rp_odds[i / 2] = r[i];
-//        else
-//            rp_evens[i / 2] = r[i];
-//    }
-//    ntt_ct_ng(rp_evens, 1, 0);
-//    ntt_ct_ng(rp_odds, 1, 1);
+    int16_t rp_odds[128];
+    int16_t rp_evens[128];
+    for (unsigned i = 0; i < 256; ++i) {
+        if (i & 1U)
+            rp_odds[i / 2] = r[i];
+        else
+            rp_evens[i / 2] = r[i];
+    }
+    ntt_ct_ng(rp_evens, 1, 0);
+    ntt_ct_ng(rp_odds, 1, 1);
 
     k = 0;
-    for (len = 2; len <= 128; len <<= 1) {
+    for (len = 2; len <= 128; len <<= 1U) {
         for (start = 0; start < 256; start = j + len) {
-            zeta = zetas_inv[k++];
+            zeta = zetas_inv[k];
             for (j = start; j < start + len; ++j) {
                 t = r[j];
                 uint16_t o1 = full_reduce(t + r[j + len]);
@@ -310,31 +283,32 @@ void invntt(int16_t r[256]) {
                 r[j] = o1;
                 r[j + len] = o2;
             }
+            k+=1;
         }
     }
 
     // ... the end (here)
     // tt] ( 2766,   258) -> (   44,  2159)
 
-//    printf("rp:\n");
-//    for (int i = 0; i < 256; ++i) {
-//        if (i & 1)
-//            printf("%4d ", rp_odds[i / 2]);
-//        else
-//            printf("%4d ", rp_evens[i / 2]);
-//    }
-//    printf("\nr:\n");
-//    for (int i = 0; i < 256; ++i) {
-//        printf("%4d ", r[i]);
-//    }
-//    printf("\n\n");
+    printf("rp:\n");
+    for (int i = 0; i < 256; ++i) {
+        if (i & 1)
+            printf("%4d ", rp_odds[i / 2]);
+        else
+            printf("%4d ", rp_evens[i / 2]);
+    }
+    printf("\nr:\n");
+    for (int i = 0; i < 256; ++i) {
+        printf("%4d ", r[i]);
+    }
+    printf("\n\n");
 
-//    for (int i = 0; i < 256; ++i) {
-//        if (i & 1)
-//            assert(rp_odds[i / 2] == r[i]);
-//        else
-//            assert(rp_evens[i / 2] == r[i]);
-//    }
+    for (unsigned i = 0; i < 256; ++i) {
+        if (i & 1)
+            assert(rp_odds[i / 2] == r[i]);
+        else
+            assert(rp_evens[i / 2] == r[i]);
+    }
 
 }
 
