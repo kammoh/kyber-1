@@ -17,6 +17,8 @@ int16_t barrett_reduce(int32_t a);
 #define csubq KYBER_NAMESPACE(csubq)
 int16_t csubq(int16_t x);
 
+int16_t caddq(int16_t x);
+
 int16_t full_reduce(int64_t a);
 
 #endif

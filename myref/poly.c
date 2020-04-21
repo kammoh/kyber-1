@@ -284,22 +284,6 @@ void poly_basemul(poly *r, const poly *a, const poly *b)
 }
 
 /*************************************************
-* Name:        poly_tomont
-*
-* Description: Inplace conversion of all coefficients of a polynomial
-*              from normal domain to Montgomery domain
-*
-* Arguments:   - poly *r: pointer to input/output polynomial
-**************************************************/
-// void poly_tomont(poly *r)
-// {
-//   // unsigned int i;
-//   // const int16_t f = (1ULL << 32) % KYBER_Q;
-//   // for(i=0;i<KYBER_N;i++)
-//   //   r->coeffs[i] = full_reduce((int64_t)r->coeffs[i] * f * MONT_INV * MONT_INV);
-// }
-
-/*************************************************
 * Name:        poly_reduce
 *
 * Description: Applies Barrett reduction to all coefficients of a polynomial

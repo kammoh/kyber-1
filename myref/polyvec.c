@@ -45,13 +45,13 @@ void polyvec_compress(uint8_t r[KYBER_POLYVECCOMPRESSEDBYTES], polyvec *a)
   for(i=0;i<KYBER_K;i++) {
     for(j=0;j<KYBER_N/4;j++) {
       for(k=0;k<4;k++)
-        t[k] = ((((uint32_t)a->vec[i].coeffs[4*j+k] << 10) + KYBER_Q/2)
+        t[k] = ((((uint32_t)a->vec[i].coeffs[4*j+k] << 10U) + KYBER_Q/2)
                 / KYBER_Q) & 0x3ff;
 
       r[0] = (t[0] >> 0);
-      r[1] = (t[0] >> 8) | (t[1] << 2);
-      r[2] = (t[1] >> 6) | (t[2] << 4);
-      r[3] = (t[2] >> 4) | (t[3] << 6);
+      r[1] = (t[0] >> 8U) | (t[1] << 2);
+      r[2] = (t[1] >> 6U) | (t[2] << 4);
+      r[3] = (t[2] >> 4U) | (t[3] << 6);
       r[4] = (t[3] >> 2);
       r += 5;
     }
