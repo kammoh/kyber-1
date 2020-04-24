@@ -101,7 +101,7 @@ void ntt_ct_ng(int16_t r[128], uint8_t inv) {
 //        printf("\n");
 //    }
     unsigned k;
-    int16_t t1, t2, u1, u2, r1, r2;
+    int16_t t0, t1, u0, u1, r0, r1;
 
     int16_t mem[n / 2][2];
 
@@ -122,36 +122,33 @@ void ntt_ct_ng(int16_t r[128], uint8_t inv) {
         uint8_t last_len = (!inv) ? (len == 1) : (len == n);
         for (unsigned i = 0; i < n / 2; i += (last_len ? 2 : len) ) {
             for (unsigned j = 0; j < (last_len ? 1 : len / 2); j += 1) {
-                unsigned j1 = j + i;
-                unsigned j2 = j1 + (last_len ? 1 : len / 2);
-                assert(0 <= j1 && j1 < n / 2);
-                assert(j2 < n / 2);
-                assert(j1 < j2);
+                unsigned j0 = j + i;
+                unsigned j1 = j0 + (last_len ? 1 : len / 2);
+                assert(0 <= j0 && j0 < n / 2);
+                assert(j1 < n / 2);
+                assert(j0 < j1);
 
+                t0 = mem[j0][0];
+                u0 = mem[j0][1];
                 t1 = mem[j1][0];
                 u1 = mem[j1][1];
-                t2 = mem[j2][0];
-                u2 = mem[j2][1];
 
                 assert(k < 128);
-                int16_t w1 = (!inv) ? zetas[k] : zetas_inv[k];
-                r1 = (!inv) ? barrett_reduce((int32_t) w1 * u1)   : barrett_reduce((int32_t) w1 * (t1 - u1));
-                int16_t w2 = (!inv) ? zetas[last_len ? k | 1 : k] : zetas_inv[last_len ? k : k | 1];
-                r2 = (!inv) ? barrett_reduce((int32_t) w2 * u2)   : barrett_reduce((int32_t) w2 * (t2 - u2));
+                int16_t w0 = (!inv) ? zetas[k] : zetas_inv[k];
+                r0 = (!inv) ? barrett_reduce((int32_t) w0 * u0) : barrett_reduce((int32_t) w0 * (t0 - u0));
+                int16_t w1 = (!inv) ? zetas[last_len ? k | 1 : k] : zetas_inv[last_len ? k : k | 1];
+                r1 = (!inv) ? barrett_reduce((int32_t) w1 * u1) : barrett_reduce((int32_t) w1 * (t1 - u1));
 
-                uint16_t fwd_t1 = csubq(t1 + r1);
-                uint16_t fwd_t2 = csubq(t2 + r2);
-                uint16_t fwd_u1 = (t1 - r1);
-                uint16_t fwd_u2 = (t2 - r2);
-                uint16_t inv_t1 = csubq(t1 + u1);
-                uint16_t inv_t2 = csubq(t2 + u2);
-                uint16_t inv_u1 = (r1);
-                uint16_t inv_u2 = (r2);
+                int16_t f0 = csubq(((!inv) ? r0 : u0) + t0 );
+                int16_t f1 = csubq(((!inv) ? r1 : u1) + t1 );
+                int16_t g0 = (!inv) ? (t0 - r0) : r0;
+                int16_t g1 = (!inv) ? (t1 - r1) : r1;
 
-                mem[j1][0] = (!inv) ? fwd_t1 : inv_t1;
-                mem[j1][1] = (!inv) ? (last_len ? fwd_u1 : fwd_t2) : (last_len ? inv_u1 : inv_t2);
-                mem[j2][0] = (!inv) ? (last_len ? fwd_t2 : fwd_u1) : (last_len ? inv_t2 : inv_u1);
-                mem[j2][1] = (!inv) ? fwd_u2 : inv_u2;
+
+                mem[j0][0] = f0;
+                mem[j0][1] = (!last_len) ? f1 : g0;
+                mem[j1][0] = (!last_len) ? g0 : f1;
+                mem[j1][1] = g1;
                 num_cycles++;
             }
             if (inv ^ last_len)
@@ -259,12 +256,20 @@ void invntt(int16_t r[256]) {
 *              - const int16_t b[2]: pointer to the second factor
 *              - int16_t zeta:       integer defining the reduction polynomial
 **************************************************/
-void basemul(int16_t r[2],
+void basemac(int16_t r[2],
              const int16_t a[2],
              const int16_t b[2],
              int16_t zeta) {
-    r[0] = full_reduce((int64_t) a[1] * b[1]);
-    r[0] = full_reduce((int64_t) r[0] * zeta) + full_reduce((int64_t) a[0] * b[0]);
 
-    r[1] = full_reduce((int64_t) a[0] * b[1]) + full_reduce((int64_t) a[1] * b[0]);
+    // phase 1: N / 4 cycles
+    r[0] = csubq(barrett_reduce((int32_t) a[0] * b[0]) + r[0]);
+
+    // phase 2: N / 2 cycles
+    int16_t top = barrett_reduce((int32_t) a[1] * b[1]);
+    r[0] = csubq(barrett_reduce((int32_t) top * zeta) +  r[0]);
+
+    // phase 3: N / 4 cycles
+    r[1] = csubq(barrett_reduce((int32_t) a[1] * b[0]) + r[1]);
+    // phase 4: N / 4 cycles
+    r[1] = csubq(barrett_reduce((int32_t) a[0] * b[1]) + r[1]);
 }

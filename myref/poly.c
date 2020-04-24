@@ -274,12 +274,12 @@ void poly_invntt(poly *r)
 *              - const poly *a: pointer to first input polynomial
 *              - const poly *b: pointer to second input polynomial
 **************************************************/
-void poly_basemul(poly *r, const poly *a, const poly *b)
+void poly_basemac(poly *r, const poly *a, const poly *b)
 {
   unsigned int i;
   for(i=0;i<KYBER_N/4;i++) {
-    basemul(&r->coeffs[4*i], &a->coeffs[4*i], &b->coeffs[4*i], zetas[64+i]);
-    basemul(&r->coeffs[4*i+2], &a->coeffs[4*i+2], &b->coeffs[4*i+2], -zetas[64+i]);
+    basemac(&r->coeffs[4*i], &a->coeffs[4*i], &b->coeffs[4*i], zetas[64+i]);
+    basemac(&r->coeffs[4*i+2], &a->coeffs[4*i+2], &b->coeffs[4*i+2], -zetas[64+i]);
   }
 }
 

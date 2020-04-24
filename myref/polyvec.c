@@ -186,18 +186,19 @@ void polyvec_invntt(polyvec *r)
 **************************************************/
 void polyvec_pointwise_acc(poly *r,
                                       const polyvec *a,
-                                      const polyvec *b, uint8_t scale)
+                                      const polyvec *b, uint8_t scale, uint8_t init_zero)
 {
   unsigned int i;
-  poly t;
 
-  poly_basemul(r, &a->vec[0], &b->vec[0]);
-  for(i=1;i<KYBER_K;i++) {
-    poly_basemul(&t, &a->vec[i], &b->vec[i]);
-    poly_add(r, r, &t);
+  if(init_zero){
+      for(int jj = 0 ;jj < KYBER_N; ++jj){
+          r->coeffs[jj] = 0;
+      }
+  }
+  for(i=0;i<KYBER_K;i++) {
+    poly_basemac(r, &a->vec[i], &b->vec[i]);
   }
 
-  // poly_reduce(r);
   if(scale)
     scale_poly(r);
 }
